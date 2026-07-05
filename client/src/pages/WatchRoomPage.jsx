@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useRoom } from '../context/RoomContext';
@@ -41,10 +41,16 @@ const WatchRoomPage = () => {
   const [readyMembers,  setReadyMembers]  = useState([]);
   const { localFile, loadFile, clearFile } = useLocalFile();
 
+  // isHostRef lets callbacks always read the latest isHost without re-registering
+  const isHostRef = useRef(false);
+
+  // onLocalFileAnnounced fires for EVERYONE (server uses io.to which includes sender).
+  // The host must be ignored here because they already loaded the file locally.
   const onLocalFileAnnounced = useCallback(({ fileName, hostName }) => {
+    if (isHostRef.current) return;          // host: ignore, they set it themselves
     setLocalFileInfo({ fileName, hostName });
     setReadyMembers([]);
-    clearFile();
+    clearFile();                            // member: reset so they pick the new file
   }, [clearFile]);
 
   const onMemberFileReady = useCallback(({ username, socketId }) => {
@@ -58,10 +64,13 @@ const WatchRoomPage = () => {
   const isHost          = room?.host?._id === user?._id || room?.host === user?._id;
   const isLocalFileMode = playbackState?.movieUrl?.startsWith('local-file://');
 
+  // Keep ref in sync with isHost so callbacks always have the latest value
+  useEffect(() => { isHostRef.current = isHost; }, [isHost]);
+
   const handleHostLocalFileLoaded = useCallback((file) => {
     loadFile(file);
     setLocalFileInfo({ fileName: file.name, hostName: user?.username });
-    setReadyMembers([]);
+    setReadyMembers([{ username: user?.username, socketId: 'host' }]); // count host as ready
     socketActions.emitLocalFileReady?.();
   }, [loadFile, user, socketActions]);
 
@@ -203,7 +212,7 @@ const WatchRoomPage = () => {
   // ── Video + controls column ───────────────────────────────────────────────
   const videoColumn = (
     <div className="flex flex-col flex-1 min-w-0 overflow-hidden h-full">
-      {isLocalFileMode && localFileInfo && (
+      {localFileInfo && (
         <LocalFileBanner
           fileName={localFileInfo.fileName}
           hostName={localFileInfo.hostName}

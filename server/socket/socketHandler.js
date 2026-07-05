@@ -386,6 +386,7 @@ async function _joinRoom(socket, room, io, callback) {
   );
 
   // Send current room state to the joiner
+  const isLocalFile = updatedRoom.movieUrl?.startsWith('local-file://');
   socket.emit('sync-state', {
     isPlaying: updatedRoom.isPlaying,
     currentTime: updatedRoom.currentTime,
@@ -395,6 +396,8 @@ async function _joinRoom(socket, room, io, callback) {
     members: updatedRoom.members,
     host: updatedRoom.host,
     isLocked: updatedRoom.isLocked,
+    isLocalFile,
+    localFileName: isLocalFile ? updatedRoom.movieUrl.replace('local-file://', '') : undefined,
   });
 
   // System message

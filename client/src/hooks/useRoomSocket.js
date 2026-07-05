@@ -51,7 +51,7 @@ const useRoomSocket = (roomId, { onLocalFileAnnounced, onMemberFileReady } = {})
 
       // Late joiner: server says room is in local-file mode
       if (state.isLocalFile && state.localFileName) {
-        onLocalFileAnnounced?.({ fileName: state.localFileName, hostName: '' });
+        onLocalFileAnnounced?.({ fileName: state.localFileName, hostName: state.host?.username || '' });
       }
     };
 
